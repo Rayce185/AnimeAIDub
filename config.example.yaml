@@ -1,0 +1,50 @@
+# AnimeAIDub Configuration
+# Copy this to config.yaml and adjust to your setup
+
+scanner:
+  watch_paths:
+    - /media/anime/
+  scan_interval: 3600  # seconds (0 = manual only)
+  file_extensions: [".mkv", ".mp4"]
+
+detection:
+  require_audio: "jpn"           # must have Japanese audio
+  skip_if_audio: ["eng", "deu"]  # skip if EN or DE audio exists
+  subtitle_languages: ["eng", "deu"]
+  subtitle_priority: ["deu", "eng"]   # try German first, fall back to English
+
+processing:
+  target_languages: ["deu", "eng"]    # generate these audio tracks
+  gpu_device: "cuda:0"
+  max_concurrent_jobs: 1
+  working_dir: "/tmp"
+
+models:
+  separator: "htdemucs_ft"
+  diarizer: "pyannote/speaker-diarization-3.1"
+  whisper: "openai/whisper-large-v3-turbo"
+  tts: "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+  # Alternative TTS options:
+  # tts: "fishaudio/s1-mini"         # better quality, NC license
+  # tts: "GPT-SoVITS"               # best for anime voices, complex setup
+
+voice_profiles:
+  storage: "/config/voice_profiles/"
+
+output:
+  audio_label: "AI-Dub"
+  audio_codec: "aac"
+  audio_bitrate: "192k"
+  preserve_original: true
+  plex_notify: true
+  plex_url: "http://192.168.0.111:32400"
+  plex_token: "${PLEX_TOKEN}"
+
+web:
+  enabled: true
+  port: 29100
+  host: 0.0.0.0
+
+logging:
+  level: INFO
+  file: /data/logs/animedub.log

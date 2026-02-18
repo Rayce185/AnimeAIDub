@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  animedub:
+    build: .
+    container_name: animedub
+    restart: unless-stopped
+    ports:
+      - "29100:29100"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - animedub-data:/data
+      - animedub-models:/models
+      - /mnt/user/media/anime:/media/anime:rw
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - HF_HOME=/models/huggingface
+      - TZ=Europe/Zurich
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  animedub-data:
+  animedub-models:
