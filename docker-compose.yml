@@ -1,22 +1,22 @@
-# AnimeAIDub — docker-compose.yml
-# Usage: docker compose run --rm animedub --input /media/file.mkv --output /output/file.mkv --models-dir /models
+# AnimeAIDub Docker Compose
+# Usage: docker compose run --rm animedub --input /media/episode.mkv --output /output/dubbed.mkv
 #
-# For unRAID Community Applications template, see docs/unraid-template.xml
+# First run: docker compose run --rm animedub-download-models
+# Then:      docker compose run --rm animedub -i /media/path/to/episode.mkv -o /output/dubbed.mkv --models-dir /models
 
 services:
   animedub:
     build: .
     container_name: animedub
-    restart: "no"  # CLI tool, not a daemon
     volumes:
       # Pretrained models — persistent, download once (~5GB total)
       - /mnt/user/system/appdata/animedub/models:/models
       # Media library — read-only access to anime files
       - /mnt/user/Multimedia:/media:ro
-      # Working directory — intermediate files (auto-cleaned)
-      - /mnt/user/temp/animedub:/work
-      # Output — dubbed files land here
-      - /mnt/user/temp/animedub/output:/output
+      # Working directory for intermediate files
+      - /mnt/user/temp/animedub_work:/work
+      # Output directory for dubbed files
+      - /mnt/user/temp/animedub_output:/output
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
@@ -35,19 +35,21 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # Override entrypoint for CLI args — pass them after service name:
+    # docker compose run --rm animedub -i /media/file.mkv -o /output/file.mkv --models-dir /models
 
-  # One-time model download service
+  # One-shot service to download all required models
   download-models:
     build: .
-    container_name: animedub-download
+    container_name: animedub-download-models
     entrypoint: ["python3", "/app/scripts/download_models.py"]
-    restart: "no"
     volumes:
       - /mnt/user/system/appdata/animedub/models:/models
     environment:
       - HF_HOME=/models/huggingface
       - TORCH_HOME=/models/torch
-      - TZ=Europe/Zurich
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     deploy:
       resources:
         reservations:
@@ -55,3 +57,8 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
