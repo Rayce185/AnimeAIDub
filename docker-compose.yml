@@ -1,21 +1,27 @@
-version: '3.8'
+# AnimeAIDub — docker-compose.yml
+# Usage: docker compose run --rm animedub --input /media/file.mkv --output /output/file.mkv --models-dir /models
+#
+# For unRAID Community Applications template, see docs/unraid-template.xml
 
 services:
   animedub:
     build: .
     container_name: animedub
-    restart: unless-stopped
-    ports:
-      - "29100:29100"
+    restart: "no"  # CLI tool, not a daemon
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - animedub-data:/data
-      - animedub-models:/models
-      - /mnt/user/media/anime:/media/anime:rw
+      # Pretrained models — persistent, download once (~5GB total)
+      - /mnt/user/system/appdata/animedub/models:/models
+      # Media library — read-only access to anime files
+      - /mnt/user/Multimedia:/media:ro
+      # Working directory — intermediate files (auto-cleaned)
+      - /mnt/user/temp/animedub:/work
+      # Output — dubbed files land here
+      - /mnt/user/temp/animedub/output:/output
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - HF_HOME=/models/huggingface
+      - TORCH_HOME=/models/torch
       - TZ=Europe/Zurich
     deploy:
       resources:
@@ -30,6 +36,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
-volumes:
-  animedub-data:
-  animedub-models:
+  # One-time model download service
+  download-models:
+    build: .
+    container_name: animedub-download
+    entrypoint: ["python3", "/app/scripts/download_models.py"]
+    restart: "no"
+    volumes:
+      - /mnt/user/system/appdata/animedub/models:/models
+    environment:
+      - HF_HOME=/models/huggingface
+      - TORCH_HOME=/models/torch
+      - TZ=Europe/Zurich
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

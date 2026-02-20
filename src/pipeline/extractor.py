@@ -62,11 +62,14 @@ def extract_subtitles(
         logger.warning(f"No embedded {language} subtitles in {media_path.name}")
         return find_external_subtitles(media_path, language)
 
-    sub_file = output_path / f"{media_path.stem}_subs_{language}.srt"
+    # Detect subtitle codec to preserve native format (ASS style metadata matters)
+    sub_ext = _detect_subtitle_extension(probe, language)
+    sub_file = output_path / f"{media_path.stem}_subs_{language}{sub_ext}"
 
     cmd = [
         "ffmpeg", "-i", str(media_path),
         "-map", stream_spec,
+        "-c:s", "copy",  # Copy subtitle stream without transcoding
         "-y",
         str(sub_file)
     ]
@@ -141,3 +144,28 @@ def find_external_subtitles(media_path: Path, language: str) -> Optional[Path]:
             return candidate
 
     return None
+
+
+def _detect_subtitle_extension(probe: dict, language: str) -> str:
+    """Detect subtitle codec and return appropriate file extension.
+
+    ASS/SSA codecs need to stay as .ass to preserve style metadata
+    (used for filtering signs, typesetting, karaoke, etc).
+    """
+    for stream in probe.get("streams", []):
+        if stream.get("codec_type") != "subtitle":
+            continue
+        tags = stream.get("tags", {})
+        if not tags.get("language", "").startswith(language):
+            continue
+
+        codec = stream.get("codec_name", "").lower()
+        if codec in ("ass", "ssa"):
+            return ".ass"
+        elif codec == "subrip":
+            return ".srt"
+        elif codec == "webvtt":
+            return ".vtt"
+
+    # Default to .srt
+    return ".srt"
